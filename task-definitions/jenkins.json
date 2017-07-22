@@ -1,0 +1,47 @@
+[
+  {
+    "name": "jenkins-app-server",
+    "image": "${image}",
+    "cpu": 100,
+    "essential": true,
+    "memoryReservation": 1024,
+    "portMappings": [
+      {
+        "containerPort": 8080,
+        "hostPort": 0
+      }
+    ],
+    "environment": [
+        { "name": "CONFD_DYNAMO_TABLE", "value": "${confd_dynamo_table}" },
+        { "name": "AWS_REGION", "value": "${region}" },
+        { "name": "CONFIG_HASH", "value": "${config_hash}" }
+    ],
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "/${environment}/jenkins",
+        "awslogs-region": "${region}",
+        "awslogs-stream-prefix": "web-logs"
+      }
+    },
+    "volumesFrom": [
+      {
+        "sourceContainer": "confd"
+      }
+    ]
+  },
+  {
+    "name": "confd",
+    "image": "${confd_image}",
+    "cpu": 100,
+    "memory": 500,
+    "command": [
+      "/usr/local/confd/bin/confd",
+      "-noop",
+      "-onetime",
+      "-backend",
+      "env"
+    ],
+    "essential": false
+  }
+]
