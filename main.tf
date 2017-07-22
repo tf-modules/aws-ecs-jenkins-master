@@ -143,7 +143,7 @@ resource "aws_alb_target_group" "jenkins" {
   tags = "${merge(map("Name", format("%s-jenkins", var.tags["environment"])), var.tags)}"
 
   health_check {
-    path = "/login"
+    path = "/"
     unhealthy_threshold = "4"
     healthy_threshold   = "5"
     interval            = "30"
