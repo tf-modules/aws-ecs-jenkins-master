@@ -78,7 +78,15 @@ docker run --rm \
   -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
   -e DYNAMO_TABLE=${data.terraform_remote_state.confd.table_name} \
   -e KMS_KEY_ID=${data.terraform_remote_state.confd.key_arn} \
-  ${var.dynamodb_sync_util}
+  ${var.dynamodb_sync_util} &&
+docker run --rm \
+  -e AWS_REGION=${var.region} \
+  -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
+  -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
+  -e DYNAMO_TABLE=${data.terraform_remote_state.confd.table_name} \
+  -e KMS_KEY_ID=${data.terraform_remote_state.confd.key_arn} \
+  ${var.dynamodb_sync_util} ruby confd-sync.rb \
+  /jenkins/ssh/key b64:${base64encode(file("git-ssh-key"))} true
 EOF
   }
 }
