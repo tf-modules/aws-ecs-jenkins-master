@@ -9,6 +9,10 @@
       {
         "containerPort": 8080,
         "hostPort": 0
+      },
+      {
+        "containerPort": 50000,
+        "hostPort": 0
       }
     ],
     "environment": [
