@@ -2,9 +2,9 @@
   {
     "name": "jenkins-app-server",
     "image": "${image}",
-    "cpu": 100,
+    "cpu": 1024,
     "essential": true,
-    "memoryReservation": 1024,
+    "memoryReservation": 2048,
     "portMappings": [
       {
         "containerPort": 8080,
