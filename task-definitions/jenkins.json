@@ -40,7 +40,6 @@
     "cpu": 100,
     "memory": 500,
     "command": [
-      "/usr/local/confd/bin/confd",
       "-noop",
       "-onetime",
       "-backend",
