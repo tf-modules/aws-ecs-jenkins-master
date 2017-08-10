@@ -12,7 +12,7 @@ data "terraform_remote_state" "ecs-cluster" {
     config {
       bucket = "${var.configuration_bucket}-${var.region}-${var.aws_account_id}"
       region = "${var.region}"
-      key    = "${var.tags["site_name"]}/${var.tags["environment"]}/ecs-cluster/terraform.tfstate"
+      key    = "${var.tags["app_name"]}/${var.tags["environment"]}/ecs-cluster/terraform.tfstate"
     }
 }
 
@@ -21,7 +21,7 @@ data "terraform_remote_state" "confd" {
     config {
       bucket = "${var.configuration_bucket}-${var.region}-${var.aws_account_id}"
       region = "${var.region}"
-      key    = "${var.tags["site_name"]}/${var.tags["environment"]}/confd/terraform.tfstate"
+      key    = "${var.tags["app_name"]}/${var.tags["environment"]}/confd/terraform.tfstate"
     }
 }
 
@@ -30,7 +30,7 @@ data "terraform_remote_state" "database" {
     config {
       bucket = "${var.configuration_bucket}-${var.region}-${var.aws_account_id}"
       region = "${var.region}"
-      key    = "${var.tags["site_name"]}/${var.tags["environment"]}/database/terraform.tfstate"
+      key    = "${var.tags["app_name"]}/${var.tags["environment"]}/database/terraform.tfstate"
     }
 }
 
@@ -93,7 +93,7 @@ EOF
 
 # Create log group
 resource "aws_cloudwatch_log_group" "jenkins" {
-  name = "/${var.tags["environment"]}/jenkins"
+  name = "/${var.tags["app_name"]}-${var.tags["environment"]}/jenkins"
   retention_in_days = "1"
 
   tags = "${var.tags}"
@@ -101,11 +101,11 @@ resource "aws_cloudwatch_log_group" "jenkins" {
 
 # Create SG for alb
 resource "aws_security_group" "jenkins" {
-  name        = "${var.tags["environment"]}-jenkins"
+  name        = "${var.tags["app_name"]-${var.tags["environment"]}-jenkins"
   vpc_id      = "${module.vpc.id}"
-  description = "${var.tags["environment"]} ALB security group"
+  description = "${var.tags["app_name"]-${var.tags["environment"]} ALB security group"
 
-  tags = "${merge(map("Name", format("%s-jenkins", var.tags["environment"])), var.tags)}"
+  tags = "${merge(map("Name", format("%s-%s-jenkins", var.tags["app_name"], var.tags["environment"])), var.tags)}"
   lifecycle { create_before_destroy = true }
 
   ingress {
@@ -131,7 +131,7 @@ resource "aws_security_group" "jenkins" {
 }
 
 resource "aws_alb" "jenkins" {
-  name            = "${var.tags["environment"]}-jenkins"
+  name            = "${var.tags["app_name"]}-${var.tags["environment"]}-jenkins"
   internal        = false
   security_groups = ["${aws_security_group.jenkins.id}"]
   subnets         = ["${split(",", var.public_subnets)}"]
@@ -140,15 +140,15 @@ resource "aws_alb" "jenkins" {
     bucket = "alb-access-logs-012597783113"
   }
 
-  tags = "${merge(map("Name", format("%s-jenkins", var.tags["environment"])), var.tags)}"
+  tags = "${merge(map("Name", format("%s-%s-jenkins", var.tags["app_name"], var.tags["environment"])), var.tags)}"
 }
 
 resource "aws_alb_target_group" "jenkins" {
-  name     = "${var.tags["environment"]}-jenkins"
+  name     = "${var.tags["app_name"]}-${var.tags["environment"]}-jenkins"
   port     = 8080
   protocol = "HTTP"
   vpc_id   = "${module.vpc.id}"
-  tags = "${merge(map("Name", format("%s-jenkins", var.tags["environment"])), var.tags)}"
+  tags = "${merge(map("Name", format("%s-%s-jenkins", var.tags["app_name"], var.tags["environment"])), var.tags)}"
 
   health_check {
     path = "/robots.txt"
@@ -198,7 +198,7 @@ resource "aws_route53_record" "jenkins" {
 data "template_file" "jenkins_task_definition" {
   template = "${file("${path.module}/task-definitions/jenkins.json")}"
   vars {
-    confd_dynamo_table = "${var.tags["environment"]}"
+    confd_dynamo_table = "${var.tags["app_name"]}-${var.tags["environment"]}"
     image = "${var.jenkins_image}"
     confd_image = "${var.confd_image}"
     environment = "${var.tags["environment"]}"
@@ -209,14 +209,14 @@ data "template_file" "jenkins_task_definition" {
 
 resource "aws_ecs_task_definition" "jenkins" {
   depends_on = ["null_resource.confd"]
-  family = "${var.tags["environment"]}-jenkins"
+  family = "${var.tags["app_name"]}-${var.tags["environment"]}-jenkins"
   container_definitions = "${data.template_file.jenkins_task_definition.rendered}"
   network_mode = "bridge"
   task_role_arn = "${aws_iam_role.jenkins_service.arn}"
 }
 
 resource "aws_iam_role" "jenkins_service" {
-    name = "${var.tags["environment"]}-ecs-jenkins-service-role"
+    name = "${var.tags["app_name"]}-${var.tags["environment"]}-ecs-jenkins-service-role"
     assume_role_policy = "${file("${path.module}/policies/ecs-role.json")}"
 }
 
@@ -229,8 +229,8 @@ data "template_file" "jenkins_service_policy" {
 }
 
 resource "aws_iam_policy" "jenkins_service" {
-    name = "${var.tags["environment"]}-ecs-jenkins-service-policy"
-    description = "A policy to allow ECS workers in ${var.tags["environment"]} to do their jobs"
+    name = "${var.tags["app_name"]}-${var.tags["environment"]}-ecs-jenkins-service-policy"
+    description = "A policy to allow ECS workers in ${var.tags["app_name"]}-${var.tags["environment"]} to do their jobs"
     policy = "${data.template_file.jenkins_service_policy.rendered}"
 }
 
@@ -240,15 +240,15 @@ resource "aws_iam_role_policy_attachment" "jenkins_confd" {
 }
 
 resource "aws_iam_policy_attachment" "jenkins_service" {
- name = "${var.tags["environment"]}_service"
+ name = "${var.tags["app_name"]}-${var.tags["environment"]}_service"
  roles = ["${aws_iam_role.jenkins_service.id}"]
  policy_arn = "${aws_iam_policy.jenkins_service.arn}"
 }
 
 resource "aws_ecs_service" "jenkins" {
   depends_on = ["aws_alb_listener.jenkins-http","aws_alb_listener.jenkins-https"]
-  name = "${var.tags["environment"]}-jenkins"
-  cluster = "${var.tags["environment"]}"
+  name = "${var.tags["app_name"]}-${var.tags["environment"]}-jenkins"
+  cluster = "${var.tags["app_name"]}-${var.tags["environment"]}"
   task_definition = "${aws_ecs_task_definition.jenkins.arn}"
   desired_count = "1"
   iam_role = "${aws_iam_role.jenkins_service.arn}"
