@@ -35,13 +35,13 @@ data "terraform_remote_state" "database" {
 }
 
 module "vpc" {
-  source   = "git::ssh://git@github.com/tf-modules/aws-vpc.git?ref=0.0.4"
+  source   = "git::https://github.com/tf-modules/aws-vpc.git?ref=0.0.4"
   vpc-name = "${var.vpc_name}"
   region   = "${var.region}"
 }
 
 module "aws-r53-zone" {
-  source    = "git::ssh://git@github.com/tf-modules/aws-r53-zone.git?ref=0.0.1"
+  source    = "git::https://github.com/tf-modules/aws-r53-zone.git?ref=0.0.1"
   name      = "${var.dns_domain}"
 }
 
